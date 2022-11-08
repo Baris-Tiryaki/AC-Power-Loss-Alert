@@ -14,8 +14,7 @@ It also increases the master volume to "minVolume" level temporarily before play
 
 <br>
 
-Does not automatically start at system startup yet.
-
+Has the option to start automatically at system startup
 
 <br>
 

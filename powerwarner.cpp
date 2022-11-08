@@ -1,12 +1,16 @@
 /*
 I wrote this program to specifically warn me when AC power is lost, since my battery lasts a few minutes.
-Use/modify at your own risk!
+Use/modify at your own risk.
 
 Window stays hidden during normal use. It re-appears when AC power is lost.
 AC Power loss is alerted with auditory beeps.
 It also increases the master volume to "minVolume" level temporarily before playing sounds.
 
-Does not automatically start at system startup.
+Does not allow multiple instances to run simultaneously.
+Has an option to automatically start at system startup.
+
+//%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+
 */
 
 #include<stdio.h>
@@ -14,11 +18,12 @@ Does not automatically start at system startup.
 #include<windows.h>
 #include<mmdeviceapi.h>
 #include<endpointvolume.h>
+#include<fstream>
 using namespace std;
 
 float lastVolume=0;
 int lastMute=0;
-float minVolume=0.20;  //Modify this value to increase notification volume
+float minVolume=0.30;  //Modify this value to increase notification volume
 
 void HideConsole(){
     ShowWindow(GetConsoleWindow(), SW_HIDE);
@@ -65,10 +70,43 @@ bool ChangeVolume(bool enable){
     return FALSE;
 }
 
+bool is_file_exist(const char *fileName){
+    std::ifstream infile(fileName);
+    return infile.good();
+}
 
-int main(){
+int main(int argc, char *argv[]){
+    WCHAR exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    char startupPath[MAX_PATH]= "";
+    char* appDataPath = getenv("APPDATA");
+    sprintf(startupPath, "%s\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\PowerWarner.exe", appDataPath);
+    
+    bool startup_enable=false, startup_enabled=is_file_exist(startupPath);
+    if(argc==2 && strcmp(argv[1],"-s")==0)  startup_enable=true;
+    
+    if(startup_enable==false && startup_enabled==false){
+        printf("To automatically run at startup, run with \"-s\" flag\n");
+    }
+    else if(startup_enable==true){
+        ifstream  src(exePath,     ios::binary);
+        ofstream  dst(startupPath, ios::binary);
+        dst << src.rdbuf();
+        src.close();
+        dst.close();
+        printf("Created a copy of the executable in the startup folder: \"%s\"\n",startupPath);
+        printf("To disable auto-start, delete the copy in startup folder\n");
+        Sleep(3000);
+    }
+    CreateMutex(NULL, TRUE, "Mutex_D788s56s4gDBDGU3NS565HA");
+    if (GetLastError() == ERROR_ALREADY_EXISTS){
+        printf("Another instance is already running\nPlease terminate PowerWarner.exe from task manager\n");
+        Sleep(1000);
+        return 0;
+    }
     printf("Power Warner\n");
     printf("Window will be hidden\n");
+    Sleep(1000);
     SYSTEM_POWER_STATUS ps;
     int counter=1;
     while(true){
@@ -115,7 +153,6 @@ int main(){
                 Beep(3000, 100);
                 Sleep(100);
                 ChangeVolume(false);
-                Sleep(1000);
                 HideConsole();
                 counter=0;
             }
